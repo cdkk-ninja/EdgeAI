@@ -10,8 +10,6 @@ cam = cckkCameraX.cckkCameraX()
 cv2.namedWindow("Gesture Recognition", cv2.WINDOW_AUTOSIZE)
 cv2.startWindowThread()
 
-print("Camera started. Press 'q' in the window to quit.")
-
 try:
     while True:
         if cam.read_frame() is None:
@@ -26,7 +24,7 @@ try:
 
         cv2.imshow("Gesture Recognition", cam.frame_bgr)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' in the window to quit
             break
 
 finally:

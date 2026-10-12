@@ -20,9 +20,14 @@ try:
                 cx, cy, cz =  task.result.pos_xyz(0, i, [cam.width, cam.height])
                 cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
-            for i in range(2):
+            for i in range(task.result.num_polylines(0)):
                 pl = task.result.polyline(0, i)
                 cv2.polylines(cam.frame_bgr, [pl], isClosed=False, color=(0, 0, 255), thickness=2)
+
+            cam.mirror()  # Mirror image after adding landmarks, and before adding text
+
+            cv2.putText(cam.frame_bgr, task.result.side(0), (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
+
 
         cv2.imshow("Hand Landmarker", cam.frame_bgr)
 

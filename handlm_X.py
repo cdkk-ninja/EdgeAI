@@ -1,8 +1,7 @@
 import cv2
 from sys import path
 path.append('..')
-from cckk import cckkCameraX
-from cckk import cckkEdgeAI
+from cckk import cckkCameraX, cckkEdgeAI
 
 task =  cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/")
 cam = cckkCameraX.cckkCameraX()
@@ -27,7 +26,8 @@ try:
             cam.mirror()  # Mirror image after adding landmarks, and before adding text
 
             cv2.putText(cam.frame_bgr, task.result.side(0), (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
-
+        else:
+            cam.mirror()
 
         cv2.imshow("Hand Landmarker", cam.frame_bgr)
 

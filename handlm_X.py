@@ -16,11 +16,11 @@ try:
 
         if task.run(cam.frame_rgb):
             for i in range(task.result.num_positions(0)):
-                cx, cy, cz =  task.result.pos_xyz(0, i, [cam.width, cam.height])
+                cx, cy =  task.result.pos_xy(0, i, [cam.width, cam.height])
                 cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
             for i in range(task.result.num_polylines(0)):
-                pl = task.result.polyline(0, i)
+                pl = task.result.polyline(0, i, [cam.width, cam.height])
                 cv2.polylines(cam.frame_bgr, [pl], isClosed=False, color=(0, 0, 255), thickness=2)
 
             cam.mirror()  # Mirror image after adding landmarks, and before adding text

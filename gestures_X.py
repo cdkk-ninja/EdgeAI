@@ -16,11 +16,15 @@ try:
             continue
 
         if task.run(cam.frame_rgb):
-            label = f"{task.result.label(0)} ({task.result.score(0):.2f})"
-            cv2.putText(cam.frame_bgr, label, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
-
             cx, cy, cz =  task.result.pos_xyz(0, 8, [cam.width, cam.height])
             cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
+
+            cam.mirror()  # Mirror image after adding landmarks, and before adding text
+
+            label = f"{task.result.label(0)} ({task.result.side(0)})"
+            cv2.putText(cam.frame_bgr, label, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
+        else:
+            cam.mirror()
 
         cv2.imshow("Gesture Recognition", cam.frame_bgr)
 

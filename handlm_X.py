@@ -3,7 +3,7 @@ from sys import path
 path.append('..')
 from cckk import cckkCameraX, cckkEdgeAI
 
-task =  cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/")
+task =  cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=2)
 cam = cckkCameraX.cckkCameraX()
 
 cv2.namedWindow("Hand Landmarker", cv2.WINDOW_AUTOSIZE)
@@ -15,17 +15,20 @@ try:
             continue
 
         if task.run(cam.frame_rgb):
-            for i in range(task.result.num_positions(0)):
-                cx, cy =  task.result.pos_xy(0, i, [cam.width, cam.height])
-                cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
+            for h in range(task.result.num_objects()):   # Loop over the number of hands
+                for i in range(task.result.num_positions(h)):  # FOr each hand, loop over the landmarks
+                    cx, cy =  task.result.pos_xy(h, i, [cam.width, cam.height])
+                    cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
-            for i in range(task.result.num_polylines(0)):
-                pl = task.result.polyline(0, i, [cam.width, cam.height])
-                cv2.polylines(cam.frame_bgr, [pl], isClosed=False, color=(0, 0, 255), thickness=2)
+            for h in range(task.result.num_objects()):   # Loop over the number of hands
+                for i in range(task.result.num_polylines(h)):
+                    pl = task.result.polyline(h, i, [cam.width, cam.height])
+                    cv2.polylines(cam.frame_bgr, [pl], isClosed=False, color=(0, 0, 255), thickness=2)
 
             cam.mirror()  # Mirror image after adding landmarks, and before adding text
 
-            cv2.putText(cam.frame_bgr, task.result.side(0), (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
+            for h in range(task.result.num_objects()):
+                cv2.putText(cam.frame_bgr, task.result.side(h), (30, 40+h*40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv2.LINE_AA)
         else:
             cam.mirror()
 

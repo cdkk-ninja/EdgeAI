@@ -5,6 +5,7 @@ path.append("..")
 from cckk import cckkCameraX, cckkEdgeAI
 
 task = cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=2)
+task.set_result_history(10)
 cam = cckkCameraX.cckkCameraX()
 
 cv2.namedWindow("Hand Landmarker", cv2.WINDOW_AUTOSIZE)
@@ -18,8 +19,8 @@ try:
         if task.run(cam.frame_rgb):
             for h in range(task.result.num_objects()):  # Loop over the number of hands
                 for i in range(
-                    task.result.num_positions(h)
-                ):  # FOr each hand, loop over the landmarks
+                    task.result.num_landmarks(h)
+                ):  # For each hand, loop over the landmarks
                     cx, cy = task.result.pos_xy(h, i, [cam.width, cam.height])
                     cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
@@ -53,6 +54,8 @@ try:
         cv2.imshow("Hand Landmarker", cam.frame_bgr)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):  # Press 'q' in the window to quit
+            # foo = task.result.hx_position()
+            # print(foo)
             break
 
 finally:

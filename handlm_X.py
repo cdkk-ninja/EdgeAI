@@ -16,6 +16,7 @@ try:
         if cam.read_frame() is None:
             continue
 
+        task.scale_to = [cam.width, cam.height]
         if task.run(cam.frame_rgb):
             for h in range(task.result.num_objects()):  # Loop over the number of hands
                 for i in range(

@@ -18,13 +18,13 @@ try:
 
         if task.run(cam.frame_rgb):
             for h in range(task.result.num_objects()):  # Loop over the number of hands
-                cx, cy, cz = task.result.pos_xyz(h, 8, [cam.width, cam.height])
+                cx, cy = task.result.pos_xy(h, 8, [cam.width, cam.height])
                 cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
             cam.mirror()  # Mirror image after adding landmarks, and before adding text
 
             for h in range(task.result.num_objects()):  # Loop over the number of hands
-                label = f"{task.result.label(h)} ({task.result.side(h)})"
+                label = f"{task.result.get_obj_attribute(h, 'label')} ({task.result.get_obj_attribute(h, 'side')})"
                 cv2.putText(
                     cam.frame_bgr,
                     label,

@@ -21,6 +21,17 @@ try:
                 cx, cy = task.result.pos_xy(h, 8, [cam.width, cam.height])
                 cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
+
+            for h in range(task.result.num_objects()):  # Loop over the number of hands
+                wf = task.result.wireframe(h, [cam.width, cam.height])
+                cv2.polylines(
+                    cam.frame_bgr,
+                    wf,
+                    isClosed=False,
+                    color=(0, 0, 255),
+                    thickness=2,
+                )
+
             cam.mirror()  # Mirror image after adding landmarks, and before adding text
 
             for h in range(task.result.num_objects()):  # Loop over the number of hands

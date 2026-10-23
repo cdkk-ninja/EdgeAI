@@ -16,17 +16,17 @@ try:
         if cam.read_frame() is None:
             continue
 
-        task.scale_to = [cam.width, cam.height]
         if task.run(cam.frame_rgb):
+            task.result.scale_to = [cam.width, cam.height]
             for h in range(task.result.num_objects()):  # Loop over the number of hands
                 for i in range(
                     task.result.num_landmarks(h)
                 ):  # For each hand, loop over the landmarks
-                    cx, cy = task.result.pos_xy(h, i, [cam.width, cam.height])
+                    cx, cy = task.result.pos_xy(h, i)
                     cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 255, 0), -1)
 
             for h in range(task.result.num_objects()):  # Loop over the number of hands
-                wf = task.result.wireframe(h, [cam.width, cam.height])
+                wf = task.result.wireframe(h)
                 cv2.polylines(
                     cam.frame_bgr,
                     wf,
@@ -35,11 +35,11 @@ try:
                     thickness=2,
                 )
 
-            hx = task.result.hx_pos_xy(0, 8, [cam.width, cam.height])  # Index finger ... dot trail
+            hx = task.result.hx_pos_xy(0, 8)  # Index finger ... dot trail
             for cx, cy in hx:
                 cv2.circle(cam.frame_bgr, (cx, cy), 4, (255, 0, 0), -1)
 
-            hx_pl = task.result.hx_polyline(0, 4, [cam.width, cam.height])  # Thumb ... line trail
+            hx_pl = task.result.hx_polyline(0, 4)  # Thumb ... line trail
             cv2.polylines(
                 cam.frame_bgr,
                 [hx_pl],

@@ -15,13 +15,13 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
+path.append('../cckk')
+from cckkCameraX import *
+from cckkEdgeAI import *
 
-path.append("..")
-from cckk import cckkCameraX, cckkEdgeAI
-
-task = cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=2)
+task = cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=2)
 task.set_result_history(10)
-cam = cckkCameraX.cckkCameraX()
+cam = cckkCameraX()
 
 cv2.namedWindow("Hand Landmarker", cv2.WINDOW_AUTOSIZE)
 cv2.startWindowThread()

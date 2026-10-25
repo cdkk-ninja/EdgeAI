@@ -4,7 +4,7 @@ from sys import path
 path.append('../cckk')
 from cckkCameraX import *
 
-cam = CameraX()
+cam = cckkCameraX()
 
 # Enable window thread for Wayland display compatibility on Raspberry Pi OS
 cv2.namedWindow("Cross-Platform Camera Stream", cv2.WINDOW_AUTOSIZE)

@@ -1,6 +1,7 @@
 import cv2
 from sys import path
-path.append('../cckk')
+
+path.append("../cckk")
 from cckkCameraX import *
 from cckkEdgeAI import *
 
@@ -25,43 +26,47 @@ try:
 
         if task_lm.run(cam.frame_rgb):
             task_lm.result.scale_to = [cam.width, cam.height]
-            for h in range(task_lm.result.num_objects()):  # Loop over the number of hands
+            for h in range(
+                task_lm.result.num_objects()
+            ):  # Loop over the number of hands
                 for i in range(
                     task_lm.result.num_landmarks(h)
                 ):  # For each hand, loop over the landmarks
                     cx, cy = task_lm.result.pos_xy(h, i)
-                    cv2.circle(overlay_hand, (cx, cy), 4, (0, 255, 0, 255), -1)
+                    cam.circle(
+                        center=(cx, cy), radius=3, color=(0, 255, 0, 255), thickness=-1
+                    )
 
-            for h in range(task_lm.result.num_objects()):  # Loop over the number of hands
+            for h in range(
+                task_lm.result.num_objects()
+            ):  # Loop over the number of hands
                 wf = task_lm.result.wireframe(h)
-                cv2.polylines(
-                    overlay_hand,
-                    wf,
-                    isClosed=False,
-                    color=(0, 0, 255, 255),
-                    thickness=2,
-                )
+                cam.polylines(list_pts=wf, isClosed=False, color=(0, 0, 255, 255), thickness=2)
 
             hx = task_lm.result.hx_pos_xy(0, 8)  # Index finger ... dot trail
             for cx, cy in hx:
-                cv2.circle(overlay_hand, (cx, cy), 4, (255, 0, 0, 255), -1)
+                cam.circle(
+                    center=(cx, cy), radius=4, color=(255, 0, 0, 255), thickness=-1
+                )
 
             hx_pl = task_lm.result.hx_polyline(0, 4)  # Thumb ... line trail
-            cv2.polylines(
-                overlay_hand,
-                [hx_pl],
-                isClosed=False,
-                color=(255, 0, 0, 255),
-                thickness=2,
-            )
+            cam.polylines(list_pts=[hx_pl], isClosed=False, color=(255, 0, 0, 255))
 
             for h in range(task_lm.result.num_objects()):
-                cam.putText(task_lm.result.side(h), (30, 40 + h * 40), (0, 255, 0, 255))
+                cam.putText(
+                    text=task_lm.result.side(h),
+                    origin=(30, 40 + h * 40),
+                    color=(0, 255, 0, 255),
+                )
 
         if task_g.run(cam.frame_rgb):
-            for h in range(task_g.result.num_objects()):  # Loop over the number of hands
+            for h in range(
+                task_g.result.num_objects()
+            ):  # Loop over the number of hands
                 label = f"{task_g.result.get_obj_attribute(h, 'label')} ({task_g.result.get_obj_attribute(h, 'side')})"
-                cam.putText(label, (30, 140 + h * 40), (0, 0, 255, 255))
+                cam.putText(
+                    text=label, origin=(30, 140 + h * 40), color=(0, 0, 255, 255)
+                )
 
         final_img = cam.frame_overlays(
             [(overlay_hand, True), (overlay_text, False)], mirror=True
@@ -72,6 +77,7 @@ try:
             break
 
 finally:
-    cam.release()
     cv2.destroyAllWindows()
+    cam.release()
     task_lm.close()
+    task_g.close()

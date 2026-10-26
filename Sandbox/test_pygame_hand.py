@@ -10,6 +10,9 @@ import cckk.game.cckkSpriteManager as cckkSpriteManager
 import cckk.game.cckkSpriteExtra as cckkSpriteExtra
 import cckk.game.cckkApp as cckkApp
 
+import cckk.cckkCameraX as cckkCameraX
+import cckk.cckkEdgeAI as cckkEdgeAI
+
 # --------------------------------------------------
 
 
@@ -142,6 +145,10 @@ class Manager_Bat(cckkSpriteManager.SpriteManager):
         dealt_with = False
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "MouseMotion" and self.use_mouse:
+                x, y = e.info["pos"]
+                self._bat.rect.move_to(x, None)
+                dealt_with = True
+            if e.action == "IndexFingerTipMotion":
                 x, y = e.info["pos"]
                 self._bat.rect.move_to(x, None)
                 dealt_with = True
@@ -294,6 +301,10 @@ class MyGame(cckkPyGameApp.PyGameApp):
         self.event_mgr.event_map(key_event_map=key_map)
         self.event_mgr.user_event(cckkUtils.EVENT_GAME_TIMER_1, "GameOver")
 
+        # self._task = cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=1)
+        self._task = cckkEdgeAI.cckkMPGestureRecognizer(task_path="../cckk/MediaPipe/", num_hands=1)
+        self._cam = cckkCameraX.cckkCameraX()
+
         return True
 
     def update(self):
@@ -302,6 +313,16 @@ class MyGame(cckkPyGameApp.PyGameApp):
         self._ball_mgr1.check_bat_hits(bat1)
         self._scoreboard_mgr1.balls_left = self._ball_mgr1.balls_left
 
+    def manage_events(self):
+        if self._cam.read_frame() is not None:
+            if self._task.run(self._cam.frame_rgb) and self._task.result.num_objects() > 0 and self._task.result.num_landmarks(0) > 8:
+                pos = self._task.result.landmark(0, 8, scale_to=[-self.boundary.width, self.boundary.height])
+                side = self._task.result.side(0)
+                if pos is not None and side == "Right":
+                    ev = cckkUtils.EventManager.gc_event("IndexFingerTipMotion", pos=(pos.x, pos.y))
+                    cckkUtils.EventManager.post(ev)
+
+        super().manage_events()
 
 app_config = {
     "width": 800,

@@ -15,9 +15,9 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
-path.append('../cckk')
-from cckkCameraX import *
-from cckkEdgeAI import *
+path.append("..")
+from cckk.cckkCameraX import *
+from cckk.cckkEdgeAI import *
 
 task = cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=2)
 task.set_result_history(10)

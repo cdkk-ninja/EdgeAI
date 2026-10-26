@@ -1,8 +1,8 @@
 import cv2
 from sys import path
-path.append('../cckk')
-from cckkCameraX import *
-from cckkEdgeAI import *
+path.append("..")
+from cckk.cckkCameraX import *
+from cckk.cckkEdgeAI import *
 
 task = cckkMPGestureRecognizer(task_path="../cckk/MediaPipe/", num_hands=2)
 cam = cckkCameraX()

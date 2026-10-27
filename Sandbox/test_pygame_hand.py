@@ -1,3 +1,6 @@
+# To Do
+# - AI task .. boundary is hard-coded
+
 import pygame
 import random
 from sys import path
@@ -9,12 +12,11 @@ import cckk.game.cckkSprite as cckkSprite
 import cckk.game.cckkSpriteManager as cckkSpriteManager
 import cckk.game.cckkSpriteExtra as cckkSpriteExtra
 import cckk.game.cckkApp as cckkApp
-
+import cckk.game.cckkGameAI as cckkGameAI
 import cckk.cckkCameraX as cckkCameraX
 import cckk.cckkEdgeAI as cckkEdgeAI
 
 # --------------------------------------------------
-
 
 class Sprite_Ball(cckkSprite.Sprite):
     files = ["ball_red.png", "ball_yellow.png", "ball_green.png", "ball_blue.png"]
@@ -46,9 +48,7 @@ class Sprite_Ball(cckkSprite.Sprite):
         super().update()
         self.rect.move_physics()
 
-
 # --------------------------------------------------
-
 
 class Manager_Ball(cckkSpriteManager.SpriteManager):
     def __init__(self, limits, total, at_a_time, player_num):
@@ -115,9 +115,7 @@ class Manager_Ball(cckkSpriteManager.SpriteManager):
                 )
             )
 
-
 # --------------------------------------------------
-
 
 class Sprite_Bat(cckkSprite.Sprite):
     def __init__(self, limits):
@@ -131,9 +129,7 @@ class Sprite_Bat(cckkSprite.Sprite):
             )
         )
 
-
 # --------------------------------------------------
-
 
 class Manager_Bat(cckkSpriteManager.SpriteManager):
     def __init__(self, limits, control_type, name="Bat Manager"):
@@ -158,15 +154,9 @@ class Manager_Bat(cckkSpriteManager.SpriteManager):
             if e.action == "BatRight" and self.use_keyboard:
                 self._bat.rect.move_physics(25, 0)
                 dealt_with = True
-            if e.action == "JoystickMotion" and self.use_joystick:
-                x = e.info.get("pos", 0)
-                if e.info["axis"] == "X":
-                    self._bat.rect.move_to(x, None)
         return dealt_with
 
-
 # --------------------------------------------------
-
 
 class Manager_Scoreboard(cckkSpriteManager.SpriteManager):
     def __init__(self, limits, game_time, player_num):
@@ -256,9 +246,7 @@ class Manager_Scoreboard(cckkSpriteManager.SpriteManager):
                     dealt_with = True
         return dealt_with
 
-
 # --------------------------------------------------
-
 
 class Manager_Court(cckkSpriteManager.SpriteManager):
     def __init__(self, limits):
@@ -268,29 +256,50 @@ class Manager_Court(cckkSpriteManager.SpriteManager):
         court = cckkSprite.Sprite_Shape("Court", limits, court_style)
         self.add(court)
 
+# --------------------------------------------------
+
+class MyAITask (cckkGameAI.cckkCameraAITask):
+    def __init__(self):
+        super().__init__()
+        # self.task  = cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=1)
+        self.task = cckkEdgeAI.cckkMPGestureRecognizer(task_path="../cckk/MediaPipe/", num_hands=1)
+
+    def run_task(self) -> bool:
+        if super().run_task() and self.task is not None and self.task.result is not None:
+            if self.task.result.num_landmarks(0) > 8:
+                pos = self.task.result.landmark(0, 8, scale_to=[-800, 600])
+                side = ""
+                if hasattr( self.task.result, 'side' ) and callable( self.task.result.side):
+                    side = self.task.result.side(0)
+                if pos is not None and side == "Right":
+                    ev = cckkUtils.EventManager.gc_event("IndexFingerTipMotion", pos=(pos.x, pos.y))
+                    cckkUtils.EventManager.post(ev)
+        return self._task_success
 
 # --------------------------------------------------
 
-
 class MyGame(cckkPyGameApp.PyGameApp):
     def init(self) -> bool:
+        self._ai_task = MyAITask()
+        self.add_ai_task(self._ai_task)
+
         super().init()
-        court1 = cckkUtils.cckkRect(
+        court = cckkUtils.cckkRect(
             10, 10, (self.boundary.width - 20), self.boundary.height - 20
         )
 
-        self._court_mgr1 = Manager_Court(court1)
-        self.add_sprite_mgr(self._court_mgr1)
+        self._court_mgr = Manager_Court(court)
+        self.add_sprite_mgr(self._court_mgr)
 
-        self._ball_mgr1 = Manager_Ball(court1, 10, 3, 1)
-        self.add_sprite_mgr(self._ball_mgr1)
+        self._ball_mgr = Manager_Ball(court, 10, 3, 1)
+        self.add_sprite_mgr(self._ball_mgr)
 
-        self._bat_mgr1 = Manager_Bat(court1, cckkUtils.CONTROL_KEYBOARD)
-        self._bat_mgr1.set_config("player", 1)
-        self.add_sprite_mgr(self._bat_mgr1)
+        self._bat_mgr = Manager_Bat(court, cckkUtils.CONTROL_KEYBOARD)
+        self._bat_mgr.set_config("player", 1)
+        self.add_sprite_mgr(self._bat_mgr)
 
-        self._scoreboard_mgr1 = Manager_Scoreboard(court1, 15, 1)
-        self.add_sprite_mgr(self._scoreboard_mgr1)
+        self._scoreboard_mgr = Manager_Scoreboard(court, 15, 1)
+        self.add_sprite_mgr(self._scoreboard_mgr)
 
         key_map = {
             pygame.K_q: "Quit",
@@ -301,28 +310,14 @@ class MyGame(cckkPyGameApp.PyGameApp):
         self.event_mgr.event_map(key_event_map=key_map)
         self.event_mgr.user_event(cckkUtils.EVENT_GAME_TIMER_1, "GameOver")
 
-        # self._task = cckkEdgeAI.cckkMPHandLandmarker(task_path="../cckk/MediaPipe/", num_hands=1)
-        self._task = cckkEdgeAI.cckkMPGestureRecognizer(task_path="../cckk/MediaPipe/", num_hands=1)
-        self._cam = cckkCameraX.cckkCameraX()
-
         return True
 
     def update(self):
         super().update()
         bat1 = self.sprite("Bat Manager", "Bat", player=1)
-        self._ball_mgr1.check_bat_hits(bat1)
-        self._scoreboard_mgr1.balls_left = self._ball_mgr1.balls_left
-
-    def manage_events(self):
-        if self._cam.read_frame() is not None:
-            if self._task.run(self._cam.frame_rgb) and self._task.result.num_objects() > 0 and self._task.result.num_landmarks(0) > 8:
-                pos = self._task.result.landmark(0, 8, scale_to=[-self.boundary.width, self.boundary.height])
-                side = self._task.result.side(0)
-                if pos is not None and side == "Right":
-                    ev = cckkUtils.EventManager.gc_event("IndexFingerTipMotion", pos=(pos.x, pos.y))
-                    cckkUtils.EventManager.post(ev)
-
-        super().manage_events()
+        self._ball_mgr.check_bat_hits(bat1)
+        self._scoreboard_mgr.balls_left = self._ball_mgr.balls_left
+        self._scoreboard_mgr.balls_left = self.loops_per_sec
 
 app_config = {
     "width": 800,

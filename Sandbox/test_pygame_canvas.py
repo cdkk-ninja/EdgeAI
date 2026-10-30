@@ -21,7 +21,7 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
         self.add(self._canvas)
 
     def event(self, e):
-        dealt_with = False
+        dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             # Consumes click and unclick even if not within the canvas
             if e.action == "MouseLeftClick" and self.use_mouse:
@@ -32,6 +32,36 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
                 dealt_with = self._canvas.paint(e.info["pos"])
         return dealt_with
 
+
+# --------------------------------------------------
+
+
+class Manager_Palette(cckkSpriteManager.SpriteManager):
+
+    def __init__(self, rect: cckkUtils.cckkRect):
+        super().__init__("Palette Manager")
+        palette_colours: list[list[str]] = [
+            ["red", "blue"],
+            ["green", "yellow"],
+            ["orange", "magenta"],
+            ["purple", "pink"],
+            ["black", "snow"],
+        ]
+        self._palette = cckkSpriteExtra.Sprite_ColouredGrid("Palette", palette_colours)
+        self._palette.setup_grid_fit(
+            cols_rows=(2, 5),
+            rect=rect,
+            event_on_click=cckkUtils.EventManager.gc_event("Palette"),
+        )
+        self.add(self._palette)
+
+    def event(self, e):
+        dealt_with = super().event(e)
+        if e.type == cckkUtils.EVENT_GAME_CONTROL:
+            if e.action == "Palette" and self.use_mouse:
+                print("Select colour")
+                dealt_with = True
+        return dealt_with
 
 # --------------------------------------------------
 
@@ -72,15 +102,21 @@ class MyGame(cckkPyGameApp.PyGameApp):
         self.add_ai_task(MyAITask())
 
         super().init()
-        # canvas_rect = cckkUtils.cckkRect(
-        #     5, 5, (self.boundary.width - 10), (self.boundary.height - 10)
-        # )
-        canvas_rect = pygame.Rect.scale_by(self.boundary, 0.9)
+        margin = 10
+        pal_sq = 40
+        canvas_rect = cckkUtils.cckkRect(self.boundary).size_delta(-3*margin-2*pal_sq, -2*margin)
+        canvas_rect.left = margin
         canvas_style = {
             "fillcolour": "snow",
             "outlinecolour": "blue",
         }
+
+        palette_rect = cckkUtils.cckkRect(self.boundary.right - 2*pal_sq - margin, margin, 2*pal_sq, 5*pal_sq)
+        palette_mgr = Manager_Palette(palette_rect)
+
+        self.add_sprite_mgr(palette_mgr)
         self.add_sprite_mgr(Manager_Canvas(canvas_rect, canvas_style))
+
         self.event_mgr.event_map(
             {
                 pygame.K_q: "Quit",
@@ -98,10 +134,10 @@ class MyGame(cckkPyGameApp.PyGameApp):
         super().update()
 
 
-# --------------------------------------------------
+# ---------------------------------------------------
 
 app_config = {
-    "width": 800,
+    "width": 1000,
     "height": 600,
     "background_fill": "burlywood",
     "caption": "Test cckkPyGameApp Canvas",

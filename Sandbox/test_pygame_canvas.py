@@ -30,6 +30,10 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
                 dealt_with = self._canvas.end_painting()
             if e.action == "MouseMotion" and self.use_mouse:
                 dealt_with = self._canvas.paint(e.info["pos"])
+            if e.action == "UpdatePaint":
+                if e.info["colour"] is not None:
+                    self._canvas.paint_colour = e.info["colour"]
+                dealt_with = True
         return dealt_with
 
 
@@ -37,7 +41,6 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
 
 
 class Manager_Palette(cckkSpriteManager.SpriteManager):
-
     def __init__(self, rect: cckkUtils.cckkRect):
         super().__init__("Palette Manager")
         palette_colours: list[list[str]] = [
@@ -59,9 +62,16 @@ class Manager_Palette(cckkSpriteManager.SpriteManager):
         dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "Palette" and self.use_mouse:
-                print("Select colour")
+                col = self._palette.get_pixel(x=e.pos[0], y=e.pos[1], inc_alpha=False)
+                if col is not None:
+                    ev = cckkUtils.EventManager.gc_event(
+                        "UpdatePaint", colour=col, width=None
+                    )
+                    cckkUtils.EventManager.post(ev)
+
                 dealt_with = True
         return dealt_with
+
 
 # --------------------------------------------------
 
@@ -82,8 +92,10 @@ class MyAITask(cckkGameAI.cckkCameraAITask):
             if self.task.result.num_landmarks(0) > 8:
                 pos = self.task.result.landmark(0, 8, scale_to=[-800, 600])
                 side = ""
-                if hasattr(self.task.result, "side") and callable(
-                    self.task.result.side
+                if (
+                    isinstance(self.task.result, cckkEdgeAI.cckkMediaPipeResult)
+                    and hasattr(self.task.result, "side")
+                    and callable(self.task.result.side)
                 ):
                     side = self.task.result.side(0)
                 if pos is not None and side == "Right":
@@ -104,14 +116,18 @@ class MyGame(cckkPyGameApp.PyGameApp):
         super().init()
         margin = 10
         pal_sq = 40
-        canvas_rect = cckkUtils.cckkRect(self.boundary).size_delta(-3*margin-2*pal_sq, -2*margin)
+        canvas_rect = cckkUtils.cckkRect(self.boundary).size_delta(
+            -3 * margin - 2 * pal_sq, -2 * margin
+        )
         canvas_rect.left = margin
         canvas_style = {
             "fillcolour": "snow",
             "outlinecolour": "blue",
         }
 
-        palette_rect = cckkUtils.cckkRect(self.boundary.right - 2*pal_sq - margin, margin, 2*pal_sq, 5*pal_sq)
+        palette_rect = cckkUtils.cckkRect(
+            self.boundary.right - 2 * pal_sq - margin, margin, 2 * pal_sq, 5 * pal_sq
+        )
         palette_mgr = Manager_Palette(palette_rect)
 
         self.add_sprite_mgr(palette_mgr)

@@ -4,6 +4,7 @@ from sys import path
 path.append("..")
 import cckk.game.cckkPyGameApp as cckkPyGameApp
 import cckk.game.cckkUtils as cckkUtils
+import cckk.game.cckkSprite as cckkSprite
 import cckk.game.cckkSpriteManager as cckkSpriteManager
 import cckk.game.cckkSpriteExtra as cckkSpriteExtra
 import cckk.game.cckkGameAI as cckkGameAI
@@ -40,8 +41,8 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
 # --------------------------------------------------
 
 
-class Manager_Palette(cckkSpriteManager.SpriteManager):
-    def __init__(self, rect: cckkUtils.cckkRect):
+class Manager_PaintControls(cckkSpriteManager.SpriteManager):
+    def __init__(self, palette_rect: cckkUtils.cckkRect, brushes_rect: cckkUtils.cckkRect):
         super().__init__("Palette Manager")
         palette_colours: list[list[str]] = [
             ["red", "blue"],
@@ -53,19 +54,40 @@ class Manager_Palette(cckkSpriteManager.SpriteManager):
         self._palette = cckkSpriteExtra.Sprite_ColouredGrid("Palette", palette_colours)
         self._palette.setup_grid_fit(
             cols_rows=(2, 5),
-            rect=rect,
+            rect=palette_rect,
             event_on_click=cckkUtils.EventManager.gc_event("Palette"),
         )
         self.add(self._palette)
+
+        shape_style = {
+            "fillcolour": "black",
+            "outlinecolour": None,
+            "shape": "Ellipse",
+        }
+        # Creates 4x2 grid of styles, each with an independent copy of the brush style
+        shape_styles: list[list[dict]] = [
+            [shape_style.copy() for _ in range(2)] 
+            for _ in range(4)
+        ]
+        brush_max_size = brushes_rect.width/2
+        brush_iter = 1
+        for i in range(0, 4):
+            for j in range(0, 2):
+                shape_styles[i][j]["width"] = brush_max_size * brush_iter/9
+                shape_styles[i][j]["height"] = brush_max_size * brush_iter/9
+                brush_iter += 1
+
+        self._brushes = Sprite_Brushes(rect=brushes_rect, xcols=2, yrows=4, shape_styles=shape_styles)
+        self.add(self._brushes)
 
     def event(self, e):
         dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "Palette" and self.use_mouse:
-                col = self._palette.get_pixel(x=e.pos[0], y=e.pos[1], inc_alpha=False)
-                if col is not None:
+                colour_rgb = self._palette.get_pixel(x=e.pos[0], y=e.pos[1], inc_alpha=False)
+                if colour_rgb is not None:
                     ev = cckkUtils.EventManager.gc_event(
-                        "UpdatePaint", colour=col, width=None
+                        "UpdatePaint", colour=colour_rgb, width=None
                     )
                     cckkUtils.EventManager.post(ev)
 
@@ -75,6 +97,17 @@ class Manager_Palette(cckkSpriteManager.SpriteManager):
 
 # --------------------------------------------------
 
+class Sprite_Brushes(cckkSprite.SpriteGridSet):
+    def __init__(self, rect:cckkUtils.cckkRect, xcols:int, yrows:int, shape_styles: list[list[dict]] = [[]]):
+        super().__init__(name="Brushes", rect=rect, xcols=xcols, yrows=yrows, margin=2)
+        for i in range(xcols):
+            for j in range(yrows):
+                offset = i+j*xcols
+                # ev_click = None if evl_click is None else evl_click[offset]
+                brush = cckkSprite.Sprite_Shape(name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i]) # Size will be corrected by add_shape_xy()
+                self.add_shape_xy(brush, i, j)
+
+# --------------------------------------------------
 
 class MyAITask(cckkGameAI.cckkCameraAITask):
     def __init__(self):
@@ -128,9 +161,12 @@ class MyGame(cckkPyGameApp.PyGameApp):
         palette_rect = cckkUtils.cckkRect(
             self.boundary.right - 2 * pal_sq - margin, margin, 2 * pal_sq, 5 * pal_sq
         )
-        palette_mgr = Manager_Palette(palette_rect)
+        brushes_rect = cckkUtils.cckkRect(
+            palette_rect.left, palette_rect.bottom + 30, palette_rect.width, pal_sq * 4
+        )
 
-        self.add_sprite_mgr(palette_mgr)
+        # Palette must be first so that Canvas doesn't consume mouse clicks
+        self.add_sprite_mgr(Manager_PaintControls(palette_rect, brushes_rect))
         self.add_sprite_mgr(Manager_Canvas(canvas_rect, canvas_style))
 
         self.event_mgr.event_map(

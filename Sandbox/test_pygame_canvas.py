@@ -7,6 +7,7 @@ import cckk.game.cckkUtils as cckkUtils
 import cckk.game.cckkSprite as cckkSprite
 import cckk.game.cckkSpriteManager as cckkSpriteManager
 import cckk.game.cckkSpriteExtra as cckkSpriteExtra
+import cckk.game.cckkColours as cckkColours
 import cckk.game.cckkGameAI as cckkGameAI
 import cckk.cckkEdgeAI as cckkEdgeAI
 
@@ -51,6 +52,7 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
             ["purple", "pink"],
             ["black", "snow"],
         ]
+
         self._palette = cckkSpriteExtra.Sprite_ColouredGrid("Palette", palette_colours)
         self._palette.setup_grid_fit(
             cols_rows=(2, 5),
@@ -82,16 +84,13 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
 
     def event(self, e):
         dealt_with = super().event(e)
-        if e.type == cckkUtils.EVENT_GAME_CONTROL:
-            if e.action == "Palette" and self.use_mouse:
-                colour_rgb = self._palette.get_pixel(x=e.pos[0], y=e.pos[1], inc_alpha=False)
-                if colour_rgb is not None:
-                    ev = cckkUtils.EventManager.gc_event(
-                        "UpdatePaint", colour=colour_rgb, width=None
-                    )
-                    cckkUtils.EventManager.post(ev)
-
-                dealt_with = True
+        if e.type == cckkUtils.EVENT_GAME_CONTROL and e.action == "Palette":
+            cckkUtils.EventManager.post(
+                cckkUtils.EventManager.gc_event(
+                    "UpdatePaint", colour=e.info.get("rgb", None), width=None
+                )
+            )
+            dealt_with = True
         return dealt_with
 
 

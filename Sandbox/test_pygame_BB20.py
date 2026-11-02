@@ -84,7 +84,7 @@ class Manager_Ball(cckkSpriteManager.SpriteManager):
         if not dealt_with and e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "Boundary":
                 if e.at_limit_y & cckkUtils.AT_LIMIT_BOTTOM:
-                    self.kill_uuid(e.info["ball_id"])
+                    self.kill_uuid(e.ball_id)
                     self.add_balls()
         return dealt_with
 
@@ -120,7 +120,7 @@ class Manager_Bat(cckkSpriteManager.SpriteManager):
         dealt_with = False
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "MouseMotion" and self.use_mouse:
-                x, y = e.info["pos"]
+                x, y = e.pos
                 self._bat.rect.move_to(x, None)
                 dealt_with = True
             if e.action == "BatLeft" and self.use_keyboard:
@@ -130,8 +130,8 @@ class Manager_Bat(cckkSpriteManager.SpriteManager):
                 self._bat.rect.move_physics(25, 0)
                 dealt_with = True
             if e.action == "JoystickMotion" and self.use_joystick:
-                x = e.info.get("pos",0)
-                if e.info["axis"] == "X":
+                x = getattr(e, "pos", 0)
+                if e.axis == "X":
                     self._bat.rect.move_to(x, None)
         return dealt_with
 
@@ -212,8 +212,8 @@ class Manager_Scoreboard(cckkSpriteManager.SpriteManager):
         dealt_with = False
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             if e.action == "UpdateScore":
-                if e.info["player"] == self.player:
-                    self.score += e.info["score"]
+                if e.player == self.player:
+                    self.score += e.score
                     dealt_with = True
         return dealt_with
 

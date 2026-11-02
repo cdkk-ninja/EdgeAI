@@ -26,15 +26,17 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
         dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             # Consumes click and unclick even if not within the canvas
-            if e.action == "MouseLeftClick" and self.use_mouse:
-                dealt_with = self._canvas.start_painting(e.info["pos"])
-            if e.action == "MouseUnclick" and self.use_mouse:
+            pos = getattr(e, "pos", None)
+            if e.action == "MouseLeftClick" and self.use_mouse and pos is not None:
+                dealt_with = self._canvas.start_painting(pos)
+            if e.action == "MouseUnclick" and self.use_mouse and pos is not None:
                 dealt_with = self._canvas.end_painting()
-            if e.action == "MouseMotion" and self.use_mouse:
-                dealt_with = self._canvas.paint(e.info["pos"])
+            if e.action == "MouseMotion" and self.use_mouse and pos is not None:
+                dealt_with = self._canvas.paint(pos)
             if e.action == "UpdatePaint":
-                if e.info["colour"] is not None:
-                    self._canvas.paint_colour = e.info["colour"]
+                colour = getattr(e, "colour", None)
+                if colour is not None:
+                    self._canvas.paint_colour = colour
                 dealt_with = True
         return dealt_with
 
@@ -87,7 +89,7 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
         if e.type == cckkUtils.EVENT_GAME_CONTROL and e.action == "Palette":
             cckkUtils.EventManager.post(
                 cckkUtils.EventManager.gc_event(
-                    "UpdatePaint", colour=e.info.get("rgb", None), width=None
+                    "UpdatePaint", colour=getattr(e, "rgb", None), width=None
                 )
             )
             dealt_with = True
@@ -101,9 +103,8 @@ class Sprite_Brushes(cckkSprite.SpriteGridSet):
         super().__init__(name="Brushes", rect=rect, xcols=xcols, yrows=yrows, margin=2)
         for i in range(xcols):
             for j in range(yrows):
-                offset = i+j*xcols
-                # ev_click = None if evl_click is None else evl_click[offset]
-                brush = cckkSprite.Sprite_Shape(name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i]) # Size will be corrected by add_shape_xy()
+                # Create a brush. Its size will be corrected by add_shape_xy()
+                brush = cckkSprite.Sprite_Shape(name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i])
                 self.add_shape_xy(brush, i, j)
 
 # --------------------------------------------------

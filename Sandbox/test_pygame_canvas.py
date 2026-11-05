@@ -1,3 +1,6 @@
+# Add prepare_ai_task_data() to cckkApp ... link to AI task name
+# Add type checking to *ai* methods
+
 import pygame
 from sys import path
 

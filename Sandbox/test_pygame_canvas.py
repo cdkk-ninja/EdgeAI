@@ -27,17 +27,35 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             # Consumes click and unclick even if not within the canvas
             pos = getattr(e, "pos", None)
-            if e.action == "MouseLeftClick" and self.use_mouse and pos is not None:
-                dealt_with = self._canvas.start_painting(pos)
-            if e.action == "MouseUnclick" and self.use_mouse and pos is not None:
-                dealt_with = self._canvas.end_painting()
-            if e.action == "MouseMotion" and self.use_mouse and pos is not None:
-                dealt_with = self._canvas.paint(pos)
-            if e.action == "UpdatePaint":
-                colour = getattr(e, "colour", None)
-                if colour is not None:
-                    self._canvas.paint_colour = colour
-                dealt_with = True
+            if pos is not None and getattr(e, "pos_01_scale", False):
+                pos = cckkEdgeAI.cckkPosition.scale_xy(
+                    pos_xy=pos,
+                    scale_to=(app_config["width"], app_config["height"]),
+                    mirror=True,
+                    pos_min=(0.0, 0.0),
+                    pos_max=(1.0, 1.0),
+                )
+
+            if type(pos) is tuple and len(pos) == 2:
+                if (e.action == "MouseLeftClick" and self.use_mouse) or (
+                    e.action == "MiddleThumbFingerClick"
+                ):
+                    dealt_with = self._canvas.start_painting(pos)
+                    print("Start painting")
+                if (e.action == "MouseUnclick" and self.use_mouse) or (
+                    e.action == "MiddleThumbFingerUnclick"
+                ):
+                    dealt_with = self._canvas.end_painting()
+                    print("End painting")
+                if (
+                    e.action == "MouseMotion" and self.use_mouse
+                ) or e.action == "IndexFingerTipMotion":
+                    dealt_with = self._canvas.paint(pos)
+                if e.action == "UpdatePaint":
+                    colour = getattr(e, "colour", None)
+                    if colour is not None:
+                        self._canvas.paint_colour = colour
+                    dealt_with = True
         return dealt_with
 
 
@@ -115,6 +133,7 @@ class MyAITask(cckkGameAI.cckkCameraAITask):
         self.task = cckkEdgeAI.cckkMPGestureRecognizer(
             task_path="../cckk/MediaPipe/", num_hands=1
         )
+        self._last_event_sent: str = "" # Keeps track of the last event sent to avoid sending duplicate events
 
     def run_task(self) -> bool:
         if (
@@ -123,7 +142,7 @@ class MyAITask(cckkGameAI.cckkCameraAITask):
             and self.task.result is not None
         ):
             if self.task.result.num_landmarks(0) > 8:
-                pos = self.task.result.landmark(0, 8, scale_to=[-800, 600])
+                pos = self.task.result.landmark(0, 8)
                 side = ""
                 if (
                     isinstance(self.task.result, cckkEdgeAI.cckkMediaPipeResult)
@@ -133,9 +152,25 @@ class MyAITask(cckkGameAI.cckkCameraAITask):
                     side = self.task.result.side(0)
                 if pos is not None and side == "Right":
                     ev = cckkUtils.EventManager.gc_event(
-                        "IndexFingerTipMotion", pos=(pos.x, pos.y)
+                        "IndexFingerTipMotion", pos=(pos.x, pos.y), pos_01_scale=True
                     )
                     cckkUtils.EventManager.post(ev)
+
+                middle_thumb = self.task.result.landmark_vector(0, 12, 0, 4)
+                if middle_thumb.length < 0.05 and pos is not None and self._last_event_sent != "MiddleThumbFingerClick":
+                    ev = cckkUtils.EventManager.gc_event(
+                        "MiddleThumbFingerClick", pos=(pos.x, pos.y), pos_01_scale=True
+                    )
+                    cckkUtils.EventManager.post(ev)
+                    self._last_event_sent = "MiddleThumbFingerClick"
+
+                if middle_thumb.length >= 0.05 and pos is not None and self._last_event_sent != "MiddleThumbFingerUnclick":
+                    ev = cckkUtils.EventManager.gc_event(
+                        "MiddleThumbFingerUnclick", pos=(pos.x, pos.y), pos_01_scale=True
+                    )
+                    cckkUtils.EventManager.post(ev)
+                    self._last_event_sent = "MiddleThumbFingerUnclick"
+
         return self._task_success
 
 

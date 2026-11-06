@@ -1,6 +1,5 @@
 import cv2
 from sys import path
-import numpy as np  # <--- Added to create the white background canvas
 import pygame
 
 # Initialize Pygame
@@ -38,32 +37,26 @@ try:
         if cam.read_frame() is None:
             continue
 
-        # =====================================================================
-        # OVERWRITE THE BACKGROUND WITH WHITE
-        # We fill the frame with 255s (White in BGR). 
-        # This completely erases your room/face but leaves the data for task.run() intact.
-        # =====================================================================
-        cam.frame_bgr = np.ones((cam.height, cam.width, 3), dtype=np.uint8) * 255
-
-        # 3. Process Computer Vision Analytics & Draw Overlays
+        # 3. Process Computer Vision Analytics 
+        # (We run this BEFORE whitening the frame so MediaPipe can actually see your hand!)
         if task.run(cam.frame_rgb):
             task.result.scale_to = [cam.width, cam.height]
             
-            # Draw Hand Landmarks (Black Dots instead of Green)
-            for h in range(task.result.num_objects()):  
-                for i in range(task.result.num_landmarks(h)):  
-                    cx, cy = task.result.pos_xy(h, i)
-                    cv2.circle(cam.frame_bgr, (cx, cy), 4, (0, 0, 0), -1)
-
-            # Draw Hand Wireframes (Black Connective Lines instead of Red)
+            # =====================================================================
+            # NOW OVERWRITE THE BACKGROUND WITH PURE WHITE
+            # MediaPipe already found your landmarks, so it is safe to erase the room now!
+            # =====================================================================
+            cam.frame_bgr[:] = 255
+            
+            # Draw Hand Wireframes (Thick Black Connective Lines)
             for h in range(task.result.num_objects()):  
                 wf = task.result.wireframe(h)
                 cv2.polylines(
                     cam.frame_bgr,
                     wf,
                     isClosed=False,
-                    color=(0, 0, 0),
-                    thickness=2,
+                    color=(0, 0, 0),  # Pure Black Outline
+                    thickness=4,      # Thicker lines for a clean line-art look
                 )
 
             # Draw Index Finger Dot Trail (Blue Dots)
@@ -96,11 +89,12 @@ try:
                     cv2.LINE_AA,
                 )
         else:
+            # If no hand is found, we still want the screen to be white!
+            cam.frame_bgr[:] = 255
             cam.mirror()
 
         # 4. Color Channel Correction
         frame_rgb = cv2.cvtColor(cam.frame_bgr, cv2.COLOR_BGR2RGB)
-
         frame_swapped = cv2.transpose(frame_rgb)
 
         # 6. Convert NumPy Array directly to a Pygame Surface

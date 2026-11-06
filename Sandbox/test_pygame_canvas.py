@@ -40,16 +40,13 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
                 )
 
             if type(pos) is tuple and len(pos) == 2:
-                if (e.action == "MouseLeftClick" and self.use_mouse) or (
-                    e.action == "MiddleThumbFingerClick"
-                ):
+                if (e.action == "MouseLeftClick" and self.use_mouse):
                     dealt_with = self._canvas.start_painting(pos)
-                    print("Start painting")
-                if (e.action == "MouseUnclick" and self.use_mouse) or (
-                    e.action == "MiddleThumbFingerUnclick"
-                ):
+                if (e.action == "MouseUnclick" and self.use_mouse):
                     dealt_with = self._canvas.end_painting()
-                    print("End painting")
+                if (e.action == "MiddleThumbFingerClick"):
+                    dealt_with = self._canvas.toggle_painting(pos)
+
                 if (
                     e.action == "MouseMotion" and self.use_mouse
                 ) or e.action == "IndexFingerTipMotion":

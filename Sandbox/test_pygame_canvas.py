@@ -25,6 +25,10 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
         )
         self.add(self._canvas)
 
+        self._finger_brush = Sprite_FingerBrush()
+        self.add(self._finger_brush)
+
+
     def event(self, e):
         dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
@@ -42,20 +46,27 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
             if type(pos) is tuple and len(pos) == 2:
                 if (e.action == "MouseLeftClick" and self.use_mouse):
                     dealt_with = self._canvas.start_painting(pos)
+                    
                 if (e.action == "MouseUnclick" and self.use_mouse):
                     dealt_with = self._canvas.end_painting()
+
                 if (e.action == "MiddleThumbFingerClick"):
                     dealt_with = self._canvas.toggle_painting(pos)
+                    self._finger_brush.swap_colours()
 
-                if (
-                    e.action == "MouseMotion" and self.use_mouse
-                ) or e.action == "IndexFingerTipMotion":
+                if e.action == "MouseMotion" and self.use_mouse:
                     dealt_with = self._canvas.paint(pos)
+
+                if e.action == "IndexFingerTipMotion":
+                    dealt_with = self._canvas.paint(pos)                    
+                    self._finger_brush.rect.move_to(pos[0], pos[1])
+
                 if e.action == "UpdatePaint":
                     colour = getattr(e, "colour", None)
                     if colour is not None:
                         self._canvas.paint_colour = colour
                     dealt_with = True
+
         return dealt_with
 
 
@@ -99,7 +110,7 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
                 shape_styles[i][j]["height"] = brush_max_size * brush_iter/9
                 brush_iter += 1
 
-        self._brushes = Sprite_Brushes(rect=brushes_rect, xcols=2, yrows=4, shape_styles=shape_styles)
+        self._brushes = Sprite_SelectBrush(rect=brushes_rect, xcols=2, yrows=4, shape_styles=shape_styles)
         self.add(self._brushes)
 
     def event(self, e):
@@ -116,7 +127,7 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
 
 # --------------------------------------------------
 
-class Sprite_Brushes(cckkSprite.SpriteGridSet):
+class Sprite_SelectBrush(cckkSprite.SpriteGridSet):
     def __init__(self, rect:cckkUtils.cckkRect, xcols:int, yrows:int, shape_styles: list[list[dict]] = [[]]):
         super().__init__(name="Brushes", rect=rect, xcols=xcols, yrows=yrows, margin=2)
         for i in range(xcols):
@@ -124,6 +135,22 @@ class Sprite_Brushes(cckkSprite.SpriteGridSet):
                 # Create a brush. Its size will be corrected by add_shape_xy()
                 brush = cckkSprite.Sprite_Shape(name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i])
                 self.add_shape_xy(brush, i, j)
+
+# --------------------------------------------------
+
+class Sprite_FingerBrush (cckkSprite.Sprite_Shape):
+    def __init__(self, name="FingerBrush"):
+        fb_style = {
+            "shape": "ellipse",
+            "fillcolour": "white",
+            "altcolour": "green",
+            "outlinecolour": "blue",
+            "outlinewidth": 1,
+            "width": 10,
+            "height": 10,
+        }
+        super().__init__(name=name, rect=None, style=fb_style)
+
 
 # --------------------------------------------------
 

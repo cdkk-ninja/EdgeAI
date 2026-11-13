@@ -59,50 +59,55 @@ try:
             cam.frame_bgr[:] = 255  
             
             if task.result.num_objects() > 0:
-                # Raw coordinates of the index tip
-                raw_x, raw_y = task.result.pos_xy(0, 8)
+                # Landmark 4 = Thumb Tip, Landmark 8 = Index Tip
+                thumb_x, thumb_y = task.result.pos_xy(0, 4)
+                index_x, index_y = task.result.pos_xy(0, 8)
                 
+                # Calculate palm size baseline using MCP (9) and Wrist (0)
+                wrist_x, wrist_y = task.result.pos_xy(0, 0)
+                mcp_x, mcp_y = task.result.pos_xy(0, 9)
+                palm_size = math.hypot(mcp_x - wrist_x, mcp_y - wrist_y)
+                
+                # Check pinch distance between Thumb Tip (4) and Index Tip (8)
+                pinch_dist = math.hypot(index_x - thumb_x, index_y - thumb_y)
+                is_pinching = pinch_dist < (palm_size * 0.35)
+                
+                # Track finger extension status for Eraser Mode
+                index_ext = math.hypot(index_x - mcp_x, index_y - mcp_y) > palm_size * 0.9
+                middle_ext = math.hypot(task.result.pos_xy(0, 12)[0] - mcp_x, task.result.pos_xy(0, 12)[1] - mcp_y) > palm_size * 0.9
+                ring_ext = math.hypot(task.result.pos_xy(0, 16)[0] - mcp_x, task.result.pos_xy(0, 16)[1] - mcp_y) > palm_size * 0.9
+                pinky_ext = math.hypot(task.result.pos_xy(0, 20)[0] - mcp_x, task.result.pos_xy(0, 20)[1] - mcp_y) > palm_size * 0.9
+
+                # Use the midpoint between thumb & index when pinching, or index tip when hovering
+                if is_pinching:
+                    raw_x = int((thumb_x + index_x) / 2)
+                    raw_y = int((thumb_y + index_y) / 2)
+                else:
+                    raw_x, raw_y = index_x, index_y
+
                 # Apply smoothing filter to the raw coordinates
                 if smooth_x is None or smooth_y is None:
                     smooth_x, smooth_y = raw_x, raw_y
                 else:
                     smooth_x = int(smooth_x + SMOOTH_FACTOR * (raw_x - smooth_x))
                     smooth_y = int(smooth_y + SMOOTH_FACTOR * (raw_y - smooth_y))
-                
-                # Calculate palm size baseline using MCP and Wrist
-                wrist_x, wrist_y = task.result.pos_xy(0, 0)
-                mcp_x, mcp_y = task.result.pos_xy(0, 9)
-                palm_size = math.hypot(mcp_x - wrist_x, mcp_y - wrist_y)
-                
-                # Track finger extension status
-                # Index (8), Middle (12), Ring (16), Pinky (20) compared to MCP joint (9)
-                # Thumb (4) compared to CMC joint (2)
-                thumb_ext = math.hypot(task.result.pos_xy(0, 4)[0] - task.result.pos_xy(0, 2)[0], task.result.pos_xy(0, 4)[1] - task.result.pos_xy(0, 2)[1]) > palm_size * 0.75
-                index_ext = math.hypot(task.result.pos_xy(0, 8)[0] - mcp_x, task.result.pos_xy(0, 8)[1] - mcp_y) > palm_size * 0.9
-                middle_ext = math.hypot(task.result.pos_xy(0, 12)[0] - mcp_x, task.result.pos_xy(0, 12)[1] - mcp_y) > palm_size * 0.9
-                ring_ext = math.hypot(task.result.pos_xy(0, 16)[0] - mcp_x, task.result.pos_xy(0, 16)[1] - mcp_y) > palm_size * 0.9
-                pinky_ext = math.hypot(task.result.pos_xy(0, 20)[0] - mcp_x, task.result.pos_xy(0, 20)[1] - mcp_y) > palm_size * 0.9
 
-                # Check strict gestures
-                if index_ext and not middle_ext and not ring_ext and not pinky_ext:
-                    current_mode = "Drawing Mode (Index)"
-                    if prev_x is not None and prev_y is not None:
-                        cv2.line(drawing_canvas, (prev_x, prev_y), (smooth_x, smooth_y), (255, 0, 0), 6)
-                    prev_x, prev_y = smooth_x, smooth_y
-
-                elif index_ext and middle_ext and not ring_ext and not pinky_ext:
-                    current_mode = "Hover (Peace :)"
-                    prev_x, prev_y = None, None
-                    cv2.circle(cam.frame_bgr, (smooth_x, smooth_y), 8, (0, 200, 0), -1)
-
-                elif index_ext and middle_ext and ring_ext and pinky_ext:
+                # Gesture Checks: Eraser (Open Palm) -> Draw (Pinch) -> Hover (Open Pinch)
+                if not is_pinching and index_ext and middle_ext and ring_ext and pinky_ext:
                     current_mode = "Eraser Mode (Palm)"
                     cv2.circle(drawing_canvas, (smooth_x, smooth_y), 50, (0, 0, 0), -1)
                     prev_x, prev_y = None, None 
 
+                elif is_pinching:
+                    current_mode = "Drawing Mode (Pinch)"
+                    if prev_x is not None and prev_y is not None:
+                        cv2.line(drawing_canvas, (prev_x, prev_y), (smooth_x, smooth_y), (255, 0, 0), 6)
+                    prev_x, prev_y = smooth_x, smooth_y
+
                 else:
-                    current_mode = "Fist / Invalid Gesture"
+                    current_mode = "Hover Mode (Release)"
                     prev_x, prev_y = None, None
+                    cv2.circle(cam.frame_bgr, (smooth_x, smooth_y), 8, (0, 200, 0), -1)
             else:
                 prev_x, prev_y = None, None
                 smooth_x, smooth_y = None, None

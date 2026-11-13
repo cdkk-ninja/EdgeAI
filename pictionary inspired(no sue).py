@@ -24,9 +24,9 @@ cam.read_frame()
 drawing_canvas = np.zeros((cam.height, cam.width, 3), dtype=np.uint8)
 prev_x, prev_y = None, None
 
-# Variables for smoothing coordinates (Moving average)
+# Variables for smoothing coordinates (
 smooth_x, smooth_y = None, None
-SMOOTH_FACTOR = 0.4  # Lower values = smoother but slightly more delayed; Higher values = sharper but less smooth
+SMOOTH_FACTOR = 0.75  
 
 clock = pygame.time.Clock()
 run = True

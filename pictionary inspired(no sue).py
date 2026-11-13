@@ -24,9 +24,9 @@ cam.read_frame()
 drawing_canvas = np.zeros((cam.height, cam.width, 3), dtype=np.uint8)
 prev_x, prev_y = None, None
 
-# Variables for smoothing coordinates (
+# Variables for smoothing coordinates
 smooth_x, smooth_y = None, None
-SMOOTH_FACTOR = 0.75  
+SMOOTH_FACTOR = 0.4  
 
 clock = pygame.time.Clock()
 run = True
@@ -89,10 +89,17 @@ try:
                     if prev_x is not None and prev_y is not None:
                         cv2.line(drawing_canvas, (prev_x, prev_y), (smooth_x, smooth_y), (255, 0, 0), 6)
                     prev_x, prev_y = smooth_x, smooth_y
+
+                elif index_ext and middle_ext and not ring_ext and not pinky_ext:
+                    current_mode = "Hover (Peace :)"
+                    prev_x, prev_y = None, None
+                    cv2.circle(cam.frame_bgr, (smooth_x, smooth_y), 8, (0, 200, 0), -1)
+
                 elif index_ext and middle_ext and ring_ext and pinky_ext:
                     current_mode = "Eraser Mode (Palm)"
                     cv2.circle(drawing_canvas, (smooth_x, smooth_y), 50, (0, 0, 0), -1)
                     prev_x, prev_y = None, None 
+
                 else:
                     current_mode = "Fist / Invalid Gesture"
                     prev_x, prev_y = None, None
@@ -117,7 +124,7 @@ try:
         stroke_indices = np.any(drawing_canvas > 0, axis=-1)
         cam.frame_bgr[stroke_indices] = drawing_canvas[stroke_indices]
 
-        text_color = (0, 0, 255) if "Eraser" in current_mode else ((128, 128, 128) if "No Hand" in current_mode else (255, 0, 0))
+        text_color = (0, 0, 255) if "Eraser" in current_mode else ((0, 180, 0) if "Hover" in current_mode else ((128, 128, 128) if "No Hand" in current_mode else (255, 0, 0)))
         cv2.putText(
             cam.frame_bgr,
             f"Mode: {current_mode}",

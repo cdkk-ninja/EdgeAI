@@ -46,8 +46,7 @@ class MySpriteManager(cckkSpriteManager.SpriteManager):
                 ]
 
             if e.action == "RightHandMotion":
-                self._hand.invisible = False
-                self._hand.setup_wireframe(wireframe=wf)
+                self._hand.setup_wireframe(wireframe=wf, make_visible=True)
 
             if e.action == "RightHandAbsent":
                 self._hand.invisible = True

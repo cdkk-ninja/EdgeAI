@@ -1,5 +1,7 @@
 # Add prepare_ai_task_data() to cckkApp ... link to AI task name
 # Add type checking to *ai* methods
+# Use "full_screen": True
+# Convert _last_event_sent to use a timer
 
 import pygame
 from sys import path
@@ -18,8 +20,8 @@ import cckk.cckkEdgeAI as cckkEdgeAI
 
 
 class Manager_Canvas(cckkSpriteManager.SpriteManager):
-    def __init__(self, canvas_rect, canvas_style: dict = {}):
-        super().__init__("Canvas Manager")
+    def __init__(self, canvas_rect, canvas_style: dict = {}, **sm_config):
+        super().__init__("Canvas Manager", **sm_config)
         self._canvas = cckkSpriteExtra.Sprite_Canvas(
             "Canvas", canvas_rect, canvas_style
         )
@@ -28,29 +30,61 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
         self._finger_brush = Sprite_FingerBrush()
         self.add(self._finger_brush)
 
+        wf_style={
+            "width": self.get_config("width"),
+            "height": self.get_config("height"),
+        }
+
+        self._left_hand = Sprite_HandWireframe(
+            side="Left",
+            wf_style=cckkUtils.merge_dicts(wf_style, {"outlinecolour": "blue"}),
+        )
+        self._right_hand = Sprite_HandWireframe(
+            side="Left",
+            wf_style=cckkUtils.merge_dicts(wf_style, {"outlinecolour": "red"}),
+        )
+        self.add(self._left_hand, self._right_hand)
 
     def event(self, e):
         dealt_with = super().event(e)
         if e.type == cckkUtils.EVENT_GAME_CONTROL:
             # Consumes click and unclick even if not within the canvas
+            side = getattr(e, "side", "")
             pos = getattr(e, "pos", None)
             if pos is not None and getattr(e, "pos_01_scale", False):
                 pos = cckkEdgeAI.cckkPosition.scale_xy(
                     pos_xy=pos,
-                    scale_to=(app_config["width"], app_config["height"]),
+                    scale_to=(self.width, self.height),
                     mirror=True,
                     pos_min=(0.0, 0.0),
                     pos_max=(1.0, 1.0),
                 )
 
+            wf0 = getattr(e, "wireframe", None)
+            wf: list[list[tuple[int, int]]] = [[]]
+            if wf0 is not None and getattr(e, "pos_01_scale", False):
+                wf = [
+                    [
+                        cckkEdgeAI.cckkPosition.scale_xy(
+                            pos_xy=pt,
+                            scale_to=(self.width, self.height),
+                            mirror=True,
+                            pos_min=(0.0, 0.0),
+                            pos_max=(1.0, 1.0),
+                        )
+                        for pt in sublist
+                    ]
+                    for sublist in wf0
+                ]
+
             if type(pos) is tuple and len(pos) == 2:
-                if (e.action == "MouseLeftClick" and self.use_mouse):
+                if e.action == "MouseLeftClick" and self.use_mouse:
                     dealt_with = self._canvas.start_painting(pos)
-                    
-                if (e.action == "MouseUnclick" and self.use_mouse):
+
+                if e.action == "MouseUnclick" and self.use_mouse:
                     dealt_with = self._canvas.end_painting()
 
-                if (e.action == "MiddleThumbFingerClick"):
+                if e.action == "MiddleThumbFingerClick":
                     dealt_with = self._canvas.toggle_painting(pos)
                     self._finger_brush.swap_colours()
 
@@ -58,14 +92,32 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
                     dealt_with = self._canvas.paint(pos)
 
                 if e.action == "IndexFingerTipMotion":
-                    dealt_with = self._canvas.paint(pos)                    
+                    dealt_with = self._canvas.paint(pos)
                     self._finger_brush.rect.move_to(pos[0], pos[1])
 
-                if e.action == "UpdatePaint":
-                    colour = getattr(e, "colour", None)
-                    if colour is not None:
-                        self._canvas.paint_colour = colour
-                    dealt_with = True
+            if e.action == "UpdatePaint":
+                colour = getattr(e, "colour", None)
+                if colour is not None:
+                    self._canvas.paint_colour = colour
+                dealt_with = True
+
+            if e.action == "HandMotion":
+                match side:
+                    case "Left":
+                        self._left_hand.setup_wireframe(wireframe=wf, make_visible=True)
+                    case "Right":
+                        self._right_hand.setup_wireframe(wireframe=wf, make_visible=True)
+                    case _:
+                        pass
+
+            if e.action == "HandAbsent":
+                match side:
+                    case "Left":
+                        self._left_hand.invisible = True
+                    case "Right":
+                        self._right_hand.invisible = True
+                    case _:
+                        pass
 
         return dealt_with
 
@@ -74,7 +126,9 @@ class Manager_Canvas(cckkSpriteManager.SpriteManager):
 
 
 class Manager_PaintControls(cckkSpriteManager.SpriteManager):
-    def __init__(self, palette_rect: cckkUtils.cckkRect, brushes_rect: cckkUtils.cckkRect):
+    def __init__(
+        self, palette_rect: cckkUtils.cckkRect, brushes_rect: cckkUtils.cckkRect
+    ):
         super().__init__("Palette Manager")
         palette_colours: list[list[str]] = [
             ["red", "blue"],
@@ -99,18 +153,19 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
         }
         # Creates 4x2 grid of styles, each with an independent copy of the brush style
         shape_styles: list[list[dict]] = [
-            [shape_style.copy() for _ in range(2)] 
-            for _ in range(4)
+            [shape_style.copy() for _ in range(2)] for _ in range(4)
         ]
-        brush_max_size = brushes_rect.width/2
+        brush_max_size = brushes_rect.width / 2
         brush_iter = 1
         for i in range(0, 4):
             for j in range(0, 2):
-                shape_styles[i][j]["width"] = brush_max_size * brush_iter/9
-                shape_styles[i][j]["height"] = brush_max_size * brush_iter/9
+                shape_styles[i][j]["width"] = brush_max_size * brush_iter / 9
+                shape_styles[i][j]["height"] = brush_max_size * brush_iter / 9
                 brush_iter += 1
 
-        self._brushes = Sprite_SelectBrush(rect=brushes_rect, xcols=2, yrows=4, shape_styles=shape_styles)
+        self._brushes = Sprite_SelectBrush(
+            rect=brushes_rect, xcols=2, yrows=4, shape_styles=shape_styles
+        )
         self.add(self._brushes)
 
     def event(self, e):
@@ -127,18 +182,29 @@ class Manager_PaintControls(cckkSpriteManager.SpriteManager):
 
 # --------------------------------------------------
 
+
 class Sprite_SelectBrush(cckkSprite.SpriteGridSet):
-    def __init__(self, rect:cckkUtils.cckkRect, xcols:int, yrows:int, shape_styles: list[list[dict]] = [[]]):
+    def __init__(
+        self,
+        rect: cckkUtils.cckkRect,
+        xcols: int,
+        yrows: int,
+        shape_styles: list[list[dict]] = [[]],
+    ):
         super().__init__(name="Brushes", rect=rect, xcols=xcols, yrows=yrows, margin=2)
         for i in range(xcols):
             for j in range(yrows):
                 # Create a brush. Its size will be corrected by add_shape_xy()
-                brush = cckkSprite.Sprite_Shape(name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i])
+                brush = cckkSprite.Sprite_Shape(
+                    name=f"Shape[x={i}, y={j}]", rect=rect, style=shape_styles[j][i]
+                )
                 self.add_shape_xy(brush, i, j)
+
 
 # --------------------------------------------------
 
-class Sprite_FingerBrush (cckkSprite.Sprite_Shape):
+
+class Sprite_FingerBrush(cckkSprite.Sprite_Shape):
     def __init__(self, name="FingerBrush"):
         fb_style = {
             "shape": "ellipse",
@@ -154,49 +220,101 @@ class Sprite_FingerBrush (cckkSprite.Sprite_Shape):
 
 # --------------------------------------------------
 
+
+class Sprite_HandWireframe(cckkSprite.Sprite_Shape):
+    def __init__(self, side: str, name="HandWireframe", wf_style={}):
+        default_style = {
+            "shape": "Wireframe",
+            "outlinecolour": "red",
+            "outlinewidth": 3,
+        }
+        wf_style = cckkUtils.merge_dicts(default_style, wf_style)
+        super().__init__(name=side + name, rect=None, style=wf_style)
+        self.invisible = True
+
+
+# --------------------------------------------------
+
+
 class MyAITask(cckkGameAI.cckkCameraAITask):
     def __init__(self):
         super().__init__()
         self.task = cckkEdgeAI.cckkMPGestureRecognizer(
-            task_path="../cckk/MediaPipe/", num_hands=1
+            task_path="../cckk/MediaPipe/", num_hands=2
         )
-        self._last_event_sent: str = "" # Keeps track of the last event sent to avoid sending duplicate events
+        self._last_event_sent: str = ""
 
     def run_task(self) -> bool:
+        absent_hand: dict[str, bool] = {"Right": True, "Left": True}
         if (
             super().run_task()
             and self.task is not None
             and self.task.result is not None
         ):
-            if self.task.result.num_landmarks(0) > 8:
-                pos = self.task.result.landmark(0, 8)
+            for obj in range(self.task.result.num_objects()):
                 side = ""
                 if (
                     isinstance(self.task.result, cckkEdgeAI.cckkMediaPipeResult)
                     and hasattr(self.task.result, "side")
                     and callable(self.task.result.side)
                 ):
-                    side = self.task.result.side(0)
-                if pos is not None and side == "Right":
-                    ev = cckkUtils.EventManager.gc_event(
-                        "IndexFingerTipMotion", pos=(pos.x, pos.y), pos_01_scale=True
-                    )
-                    cckkUtils.EventManager.post(ev)
+                    side = self.task.result.side(obj)
+                    absent_hand[side] = False
+                else:
+                    cckkUtils.logger.error("Unable to determine side for cckkMPGestureRecognizer")
+                    break
 
-                middle_thumb = self.task.result.landmark_vector(0, 12, 0, 4)
-                if middle_thumb.length < 0.05 and pos is not None and self._last_event_sent != "MiddleThumbFingerClick":
-                    ev = cckkUtils.EventManager.gc_event(
-                        "MiddleThumbFingerClick", pos=(pos.x, pos.y), pos_01_scale=True
-                    )
-                    cckkUtils.EventManager.post(ev)
-                    self._last_event_sent = "MiddleThumbFingerClick"
+                if side == "Right":
+                    pos_index_tip = self.task.result.landmark(obj, 8)
+                    if pos_index_tip is not None and side == "Right":
+                        ev = cckkUtils.EventManager.gc_event(
+                            "IndexFingerTipMotion", pos=(pos_index_tip.x, pos_index_tip.y), pos_01_scale=True
+                        )
+                        cckkUtils.EventManager.post(ev)
 
-                if middle_thumb.length >= 0.05 and pos is not None and self._last_event_sent != "MiddleThumbFingerUnclick":
-                    ev = cckkUtils.EventManager.gc_event(
-                        "MiddleThumbFingerUnclick", pos=(pos.x, pos.y), pos_01_scale=True
-                    )
-                    cckkUtils.EventManager.post(ev)
-                    self._last_event_sent = "MiddleThumbFingerUnclick"
+                    middle_thumb = self.task.result.landmark_vector(obj, 12, obj, 4)
+                    if (
+                        middle_thumb.length < 0.05
+                        and pos_index_tip is not None
+                        and self._last_event_sent != "MiddleThumbFingerClick"
+                    ):
+                        ev = cckkUtils.EventManager.gc_event(
+                            "MiddleThumbFingerClick", pos=(pos_index_tip.x, pos_index_tip.y), pos_01_scale=True
+                        )
+                        cckkUtils.EventManager.post(ev)
+                        self._last_event_sent = "MiddleThumbFingerClick"
+
+                    if (
+                        middle_thumb.length > 0.1
+                        and pos_index_tip is not None
+                        and self._last_event_sent != "MiddleThumbFingerUnclick"
+                    ):
+                        ev = cckkUtils.EventManager.gc_event(
+                            "MiddleThumbFingerUnclick",
+                            pos=(pos_index_tip.x, pos_index_tip.y),
+                            pos_01_scale=True,
+                        )
+                        cckkUtils.EventManager.post(ev)
+                        self._last_event_sent = "MiddleThumbFingerUnclick"
+
+                # Both hands
+                wf = self.task.result.wireframe(obj_idx=obj, scale_to=None)
+                wireframe_tuples: list[list[tuple[float, float]]] = [
+                    [(float(pt[0]), float(pt[1])) for pt in arr.reshape(-1, 2)]
+                    for arr in wf
+                ]
+                ev = cckkUtils.EventManager.gc_event(
+                    "HandMotion",
+                    wireframe=wireframe_tuples,
+                    side = side,
+                    pos_01_scale=True,
+                )
+                cckkUtils.EventManager.post(ev)
+
+        for side, missing in absent_hand.items():
+            if missing:
+                ev = cckkUtils.EventManager.gc_event("HandAbsent", side=side)
+                cckkUtils.EventManager.post(ev)
 
         return self._task_success
 
@@ -229,7 +347,11 @@ class MyGame(cckkPyGameApp.PyGameApp):
 
         # Palette must be first so that Canvas doesn't consume mouse clicks
         self.add_sprite_mgr(Manager_PaintControls(palette_rect, brushes_rect))
-        self.add_sprite_mgr(Manager_Canvas(canvas_rect, canvas_style))
+        self.add_sprite_mgr(
+            Manager_Canvas(
+                canvas_rect, canvas_style, width=self.width, height=self.height
+            )
+        )
 
         self.event_mgr.event_map(
             {
@@ -253,6 +375,7 @@ class MyGame(cckkPyGameApp.PyGameApp):
 app_config = {
     "width": 1000,
     "height": 600,
+    # "full_screen": True,
     "background_fill": "burlywood",
     "caption": "Test cckkPyGameApp Canvas",
     "auto_start": True,

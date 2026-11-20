@@ -142,7 +142,7 @@ try:
 
                 else:
                     if not is_pinching and index_ext and middle_ext and ring_ext and pinky_ext:
-                        current_mode = "Eraser Mode (Palm)"
+                        current_mode = "Eraser  (Palm)"
                         if not is_stroke_active:
                             save_history()
                             is_stroke_active = True
@@ -150,7 +150,7 @@ try:
                         prev_x, prev_y = None, None 
 
                     elif is_pinching:
-                        current_mode = "Drawing Mode (Pinch)"
+                        current_mode = "Drawing  (Pinch)"
                         if not is_stroke_active:
                             save_history()
                             is_stroke_active = True
@@ -160,7 +160,7 @@ try:
                         prev_x, prev_y = smooth_x, smooth_y
 
                     else:
-                        current_mode = "Hover Mode (Release)"
+                        current_mode = "Hovering (Release)"
                         prev_x, prev_y = None, None
                         is_stroke_active = False
 
@@ -190,7 +190,7 @@ try:
         stroke_indices = np.any(drawing_canvas > 0, axis=-1)
         cam.frame_bgr[stroke_indices] = drawing_canvas[stroke_indices]
 
-        cv2.rectangle(cam.frame_bgr, (0, 0), (cam.width, UI_HEIGHT), (235, 235, 235), -1)
+        cv2.rectangle(cam.frame_bgr, (0, 0), (cam.width, UI_HEIGHT), (173, 216, 230), -1)
         cv2.line(cam.frame_bgr, (0, UI_HEIGHT), (cam.width, UI_HEIGHT), (180, 180, 180), 2)
 
         for btn in color_buttons:
